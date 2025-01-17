@@ -1,4 +1,4 @@
-### On-Premise Envrironmennt siulation for Data Migration Workshop
+### On-Premise Environment simulation for Data Migration Workshop
 
 ---
 
