@@ -1,0 +1,102 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: ECS instances with a Windows bastion host to SSH into a Linux instance.
+
+Parameters:
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: Select the VPC
+
+  SubnetId:
+    Type: AWS::EC2::Subnet::Id
+    Description: Select the Subnet
+
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Select an existing EC2 KeyPair to allow SSH access to the instances
+
+  WindowsAmiId:
+    Type: String
+    Description: AMI ID for the Windows instance
+    Default: "ami-0e32864a4910bd3a9"
+
+  LatestLinuxAmiId:
+    Type: String
+    Description: AMI ID for the latest Amazon Linux instance
+    Default: "ami-0b4a21432a0c9c1ab"
+
+Resources:
+  LinuxInstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for Linux ECS instance
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          SourceSecurityGroupId: !Ref BastionHostSecurityGroup
+      Tags:
+        - Key: Name
+          Value: LinuxInstanceSG
+
+  BastionHostSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for Windows bastion host
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3389
+          ToPort: 3389
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: BastionHostSG
+          
+  LinuxECSInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t3.micro
+      KeyName: !Ref KeyName
+      SecurityGroupIds:
+        - !Ref LinuxInstanceSecurityGroup
+      SubnetId: !Ref SubnetId
+      ImageId: !Ref LatestLinuxAmiId
+      Tags:
+        - Key: Name
+          Value: LinuxECSInstance
+
+  WindowsBastionHostInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t3.xlarge
+      KeyName: !Ref KeyName
+      SecurityGroupIds:
+        - !Ref BastionHostSecurityGroup
+      SubnetId: !Ref SubnetId
+      ImageId: !Ref WindowsAmiId
+      Tags:
+        - Key: Name
+          Value: WindowsBastionHost
+
+Outputs:
+  LinuxInstanceId:
+    Description: ID of the Linux ECS instance
+    Value: !Ref LinuxECSInstance
+
+  BastionHostInstanceId:
+    Description: ID of the Windows bastion host
+    Value: !Ref WindowsBastionHostInstance
+
+  LinuxInstancePublicIP:
+    Description: Public IP of the Linux ECS instance
+    Value: !GetAtt LinuxECSInstance.PublicIp
+
+  BastionHostPublicIP:
+    Description: Public IP of the Windows bastion host
+    Value: !GetAtt WindowsBastionHostInstance.PublicIp
